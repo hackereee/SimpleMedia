@@ -32,7 +32,6 @@ const int indices[] = {
     2, 3, 1};
 
 GLObject *glObject;
-Media *media;
 
 GLObject::GLObject(int width, int height, const char *title)
 {
@@ -91,115 +90,9 @@ GLObject::GLObject(int width, int height, const char *title)
     glfwSwapInterval(1);
 }
 
-AudidoMedia::AudidoMedia(AVFormatContext *pFormatContext, AVCodecParameters *pCodecParamters) : pFormatContext(pFormatContext), pCodecParamters(pCodecParamters)
-{
-}
-
-VideoMedia::VideoMedia(AVFormatContext *pFormatContext, AVCodecParameters *pCodecParamters) : pFormatContext(pFormatContext), pCodecParamters(pCodecParamters)
-{
-}
-
-MixedMedia::MixedMedia(VideoMedia *videoMedia, AudidoMedia *audioMedia) : videoMedia(videoMedia), audioMedia(audioMedia)
-{
-}
-
-
-AudidoMedia::~AudidoMedia()
-{
-    avcodec_parameters_free(&pCodecParamters);
-    avformat_free_context(pFormatContext);   
-}
-
-VideoMedia::~VideoMedia()
-{
-    avcodec_parameters_free(&pCodecParamters);
-    avformat_free_context(pFormatContext);
-}
-
-MixedMedia::~MixedMedia()
-{
-    delete videoMedia;
-    delete audioMedia;
-}
-
-void logInfo(const char *msg)
-{
-    std::clog << msg << std::endl;
-}
-
-void logError(const char *msg)
-{
-    std::cerr << msg << std::endl;
-}
-
-
-void initMedia(const char *path)
-{
-    if(!path){
-        logError("path is null");
-        return;
-    }
-    AVFormatContext *pFormatCtx = avformat_alloc_context();
-    if(avformat_open_input(&pFormatCtx, path, NULL, NULL) < 0){
-        logError("open file failed");
-        return;
-    }
-    if(avformat_find_stream_info(pFormatCtx, NULL) < 0){
-        logError("find stream info failed");
-        return;
-    }
-    int videoStreamIndex = -1;
-    int audioStreamIndex = -1;
-    for(int i = 0; i < pFormatCtx->nb_streams; i++){
-        if(pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO){
-            videoStreamIndex = i;
-        }else if(pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO){
-            audioStreamIndex = i;
-        }
-    }
-    if(videoStreamIndex < 0 && audioStreamIndex < 0){
-        logError("find video stream failed");
-        return;
-    }
-    AudidoMedia* audioMedia = nullptr;
-    VideoMedia* videoMedia = nullptr;
-    if(audioStreamIndex >= 0){
-        AVCodecParameters *pCodecParamters = pFormatCtx->streams[audioStreamIndex]->codecpar;
-        audioMedia = new AudidoMedia(pFormatCtx, pCodecParamters);
-    }
-    if(videoStreamIndex >= 0){
-        AVCodecParameters *pCodecParamters = pFormatCtx->streams[videoStreamIndex]->codecpar;
-        videoMedia = new VideoMedia(pFormatCtx, pCodecParamters);
-    }
-
-    if(audioMedia && videoMedia){
-        media = new MixedMedia( videoMedia, audioMedia);
-    }else if(audioMedia){
-        media = audioMedia;
-    }else if(videoMedia){
-        media = videoMedia;
-    }else {
-        logError("media is null");
-        return;
-    }
-    
-
-}
-
-void printPicture()
-{
-    if (!glObject)
-    {
-        glObject = createGLObject();
-    }
-}
 
 
 
-void playSound()
-{
-}
 
-void playMedia(const char *mediaPath)
-{
-}
+
+

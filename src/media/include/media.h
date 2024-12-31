@@ -2,6 +2,12 @@
 #define MEDIA_H
 #include <glfw/glfw3.h>
 #include <common/gl_common.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+#include <iostream>
+#include <thread>
+#include <Program/shader.h>
+#include <toolkit/bufferq.h>
 
 extern "C"
 {
@@ -24,60 +30,24 @@ public:
 class Audio
 {
 public:
-    Audio()
-    {
-    }
+    AVCodecContext *pCodecCtx;
+    AVFormatContext *pFormatCtx;
+    const AVCodec *pCodec;
+    int audioStreamIndex;
+    SwrContext *swr_ctx;
+    int channels;
+    OkQueue<AVFrame *> frameQueue = OkQueue<AVFrame *>(3);
+    Audio( AVFormatContext *pFormatCtx,int audioStreamIndex, int channels);
     ~Audio()
     {
+        if (pCodecCtx)
+        {
+            avcodec_free_context(&pCodecCtx);
+        }
     }
-};
-
-class Media
-{
-
-
-public:
-    Media() {};
-    ~Media() = default;
-    virtual void play() = 0;
-};
-
-class AudidoMedia : public Media
-{
 
 private:
-    AVFormatContext *pFormatContext;
-    AVCodecParameters *pCodecParamters;
-
-public:
-    AudidoMedia(AVFormatContext *pFormatContext, AVCodecParameters *pCodecParamters);
-    ~AudidoMedia();
-    void play() override;
-};
-
-class VideoMedia : public Media
-{
-
-private:
-    AVFormatContext *pFormatContext;
-    AVCodecParameters *pCodecParamters;
-
-public:
-    VideoMedia(AVFormatContext *pFormatContext, AVCodecParameters *pCodecParamters);
-    ~VideoMedia();
-    void play() override;
-};
-
-class MixedMedia : public Media
-{
-private:
-    VideoMedia *videoMedia;
-    AudidoMedia *audioMedia;
-
-public:
-    MixedMedia(VideoMedia *videoMedia, AudidoMedia *audioMedia);
-    ~MixedMedia();
-    void play() override;
+    void start();
 };
 
 class GLObject
