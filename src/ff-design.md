@@ -64,7 +64,8 @@ double calculate_frame_duration(const AVFrame *current_frame, const AVFrame *pre
 建立2个队列，使用环形双缓冲队列，解复用后发送数据包给两个解码线程，音频线程根据其时长对每一帧音频数据解包前进行相应等待，等待结束进行解码；视频线程根据当前播放音频帧对视频帧进行同步，若当前播放音频已经超过了视频帧播放时间（根据PTS计算），则直接跳过该帧渲染取出下一帧；若当前视频帧比音频帧快，则通过两个duration和PTS计算出等待时长进行等待，完成等待后再继续播放。
 
 # ffplay音视频同步（音频为主时钟）：
-## 计算延时时间
+## 播放时同步
+### 计算延时时间
 代码如下：
 
 ```C
@@ -179,5 +180,27 @@ static int get_video_frame(VideoState *is, AVFrame *frame)
     return got_picture;
 }
 ```
+大意就是说，若解码出来的帧比音频慢了，那就跳过该帧的播放。
+
+
+## 播放时再次同步
+
+代码在`video_refresh`方法中：
+```C
+
+ if (frame_queue_nb_remaining(&is->pictq) > 1) {
+                Frame *nextvp = frame_queue_peek_next(&is->pictq);
+                duration = vp_duration(is, vp, nextvp);
+                if(!is->step && (framedrop>0 || (framedrop && get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER)) && time > is->frame_timer + duration){
+                    is->frame_drops_late++;
+                    frame_queue_next(&is->pictq);
+                    goto retry;
+                }
+            }
+```
+
+这次同步并不是音视频同步，而是纯粹的视频同步，如果已经过了当前帧的播放时间，那么直接跳过，这不是为了视频fps同步
+
+
 详情可以参考：https://ffmpeg.xianwaizhiyin.net/ffplay/video_sync.html
 
