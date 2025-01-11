@@ -1,8 +1,5 @@
-#include <libavcodec/avcodec.h>
-
-#include "include/media.h"
-#include "include/log.h"
-
+#include <media.h>
+#include <log.h>
 extern "C"
 {
 #include <libavformat/avformat.h>
@@ -12,10 +9,11 @@ extern "C"
 #include <SDL2/SDL.h>
 }
 
+class Audio::Audio
+{
+};
 
-
-Audio::Audio(AVFormatContext *pFormatCtx, int audioStreamIndex, int channels) : pFormatCtx(pFormatCtx), audioStreamIndex(audioStreamIndex), channels(channels),
-frameQueue(3)
+Audio::Audio(AVFormatContext *pFormatCtx, int audioStreamIndex, int channels) : pFormatCtx(pFormatCtx), audioStreamIndex(audioStreamIndex), channels(channels)
 {
     if (!pFormatCtx)
     {

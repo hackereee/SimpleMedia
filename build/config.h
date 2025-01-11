@@ -1,1 +1,1 @@
-/* #undef MACOS */
+#define MACOS

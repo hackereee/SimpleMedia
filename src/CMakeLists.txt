@@ -10,8 +10,9 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../libs/glfw-3.3.8-source glfw)
 
 file(GLOB_RECURSE TRANSFORM_FILES transform/*.c**)
-file(GLOB_RECURSE MEDIA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/media/*.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/media/*.h)
+file(GLOB_RECURSE MEDIA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/media/*.cpp)
+
+set(MEDIA_HEADER_DIR ${PROJECT_SOURCE_DIR}/media/include)
 
 set(TOOLKIT_DIR ${PROJECT_SOURCE_DIR}/toolkit)
 set(TOOLKIT_INCLUDE_DIR ${TOOLKIT_DIR}/include)
@@ -19,53 +20,51 @@ file(GLOB_RECURSE TOOLKIT_FILES ${TOOLKIT_DIR}/*.cpp)
 #打印TOOLKIT_DIR
 message("TOOLKIT_INCLUDE_DIR: ${TOOLKIT_INCLUDE_DIR}")
 
-file(COPY ${PROJECT_SOURCE_DIR}/../resources DESTINATION  ${PROJECT_BINARY_DIR})
-file(COPY ${PROJECT_SOURCE_DIR}/../shaders DESTINATION  ${PROJECT_BINARY_DIR})
+file(COPY ${PROJECT_SOURCE_DIR}/../resources DESTINATION ${PROJECT_BINARY_DIR})
+file(COPY ${PROJECT_SOURCE_DIR}/../shaders DESTINATION ${PROJECT_BINARY_DIR})
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/media DESTINATION ${PROJECT_BINARY_DIR}/media)
 #如果local文件夹存在，就复制到build文件夹下
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../local)
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../local)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../local DESTINATION ${PROJECT_BINARY_DIR})
-endif()
+endif ()
 
-add_executable(Start 
-main.cxx
-practice/Part1.cpp 
-glad.c  
-Program/shader.cpp common/gl_common.cpp 
-common/TextureSample.cpp 
-common/TextureSample3D.cpp
-${TRANSFORM_FILES} 
-${MEDIA_FILES}
-${TOOLKIT_FILES})
+add_executable(Start
+        main.cxx
+        practice/Part1.cpp
+        glad.c
+        Program/shader.cpp common/gl_common.cpp
+        common/TextureSample.cpp
+        common/TextureSample3D.cpp
+        ${TRANSFORM_FILES}
+        ${MEDIA_FILES}
+        ${TOOLKIT_FILES})
 
-set(ENV(PKG_CONFIG_PATH) "/opt/homebrew/Cellar/ffmpeg/7.1_3/lib/pkgconfig")
+set(ENV (PKG_CONFIG_PATH) "/opt/homebrew/Cellar/ffmpeg/7.1_3/lib/pkgconfig")
 
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(FFMPEG REQUIRED 
-    libavformat
-    libavcodec
-    libavutil
-    libswscale
+pkg_check_modules(FFMPEG REQUIRED
+        libavformat
+        libavcodec
+        libavutil
+        libswscale
 )
 message("FFMPEG_INCLUDE_DIRS: ${FFMPEG_INCLUDE_DIRS}")
-message("FFMPEG_LIBRARY_DIRS", ${FFMPEG_LIBRARY_DIRS})
+message("FFMPEG_LIBRARY_DIRS" , ${FFMPEG_LIBRARY_DIRS})
 message("FFMPEG_LIBRARIES: ${FFMPEG_LIBRARIES}")
 
 find_package(SDL2 REQUIRED)
 message("SDL2_INCLUDE_DIRS: ${SDL2_INCLUDE_DIRS}")
 message("SDL2_LIBRARIES: ${SDL2_LIBRARIES}")
 
-target_include_directories(Start PUBLIC 
-    ${PROJECT_BINARY_DIR} 
-    ${PROJECT_SOURCE_DIR}/../libs/glfw-3.3.8-source/include 
-    ${PROJECT_SOURCE_DIR}/../include  
-    ${FFMPEG_INCLUDE_DIRS}
-    ${TOOLKIT_INCLUDE_DIR}
-    ${SDL2_INCLUDE_DIRS})
-
-
-
+target_include_directories(Start PUBLIC
+        ${PROJECT_BINARY_DIR}
+        ${PROJECT_SOURCE_DIR}/../libs/glfw-3.3.8-source/include
+        ${PROJECT_SOURCE_DIR}/../include
+        ${FFMPEG_INCLUDE_DIRS}
+        ${TOOLKIT_INCLUDE_DIR}
+        ${SDL2_INCLUDE_DIRS}
+        ${MEDIA_HEADER_DIR})
 
 
 # set_target_properties(Start
@@ -81,14 +80,14 @@ find_package(OpenGL REQUIRED)
 # pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libwscale)
 # 添加头文件路径
 
-set(FFMPEG_LIBRARIES 
-${FFMPEG_LIBRARY_DIRS}/libavformat.dylib 
-${FFMPEG_LIBRARY_DIRS}/libavcodec.dylib 
-${FFMPEG_LIBRARY_DIRS}/libavutil.dylib 
-${FFMPEG_LIBRARY_DIRS}/libswscale.dylib 
-${FFMPEG_LIBRARY_DIRS}/libavdevice.dylib 
-${FFMPEG_LIBRARY_DIRS}/libavfilter.dylib 
-${FFMPEG_LIBRARY_DIRS}/libswresample.dylib)
+set(FFMPEG_LIBRARIES
+        ${FFMPEG_LIBRARY_DIRS}/libavformat.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libavcodec.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libavutil.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libswscale.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libavdevice.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libavfilter.dylib
+        ${FFMPEG_LIBRARY_DIRS}/libswresample.dylib)
 
 target_link_libraries(Start PUBLIC ${FFMPEG_LIBRARIES} ${SDL2_LIBRARIES})
 

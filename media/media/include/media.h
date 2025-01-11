@@ -6,11 +6,11 @@
 #include <libswresample/swresample.h>
 #include <iostream>
 #include <thread>
-#include <libavformat/avformat.h>
 #include <Program/shader.h>
 #include <toolkit/bufferq.h>
 
-extern "C" {
+extern "C"
+{
 #include <libavcodec/avcodec.h>
 }
 
@@ -21,6 +21,7 @@ class MediaContext
 class Video
 
 {
+
 public:
     Video(/* args */);
     ~Video();
@@ -29,16 +30,15 @@ public:
 class Audio
 {
 public:
-    AVCodecContext* pCodecCtx;
-    AVFormatContext* pFormatCtx;
-    const AVCodec* pCodec;
+    AVCodecContext *pCodecCtx;
+    AVFormatContext *pFormatCtx;
+    const AVCodec *pCodec;
     int audioStreamIndex;
-    SwrContext* swr_ctx;
+    SwrContext *swr_ctx;
     int channels;
     float duration;
-    OkQueue<AVFrame*> frameQueue;
-    Audio(AVFormatContext* pFormatCtx, int audioStreamIndex, int channels);
-
+    OkQueue<AVFrame *> frameQueue = OkQueue<AVFrame *>(3);
+    Audio( AVFormatContext *pFormatCtx,int audioStreamIndex, int channels);
     ~Audio()
     {
         if (pCodecCtx)
@@ -54,15 +54,12 @@ private:
 class GLObject
 {
 public:
-    GLObject(int width, int height, const char* title);
-
+    GLObject(int width, int height, const char *title);
     ~GLObject()
     {
-        //删除window
-        if (window != nullptr) { delete window; }
+        delete window;
     }
-
-    GLFWwindow* window;
+    GLFWwindow *window;
     std::shared_ptr<Shader> shader;
     GLuint vao, vbo, ebo;
 
@@ -70,6 +67,6 @@ private:
     void init();
 };
 
-void play(const char* mediaPath);
+void play(const char *mediaPath);
 
 #endif

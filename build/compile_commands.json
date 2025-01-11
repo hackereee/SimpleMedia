@@ -49,6 +49,30 @@
 },
 {
   "directory": "/Users/dong/develop/workspace/dong/OpenGlLearning/build",
+  "command": "/usr/bin/clang++  -I/Users/dong/develop/workspace/dong/OpenGlLearning/build -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../libs/glfw-3.3.8-source/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../include -I/opt/homebrew/Cellar/ffmpeg/7.1_3/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/toolkit/include -I/opt/homebrew/Cellar/sdl2/2.30.8/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/libs/glfw-3.3.8-source/include -isystem /opt/homebrew/Cellar/sdl2/2.30.8/include/SDL2 -iframework /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks -g -std=gnu++11 -arch arm64 -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk -mmacosx-version-min=14.1 -o CMakeFiles/Start.dir/media/audio.cpp.o -c /Users/dong/develop/workspace/dong/OpenGlLearning/src/media/audio.cpp",
+  "file": "/Users/dong/develop/workspace/dong/OpenGlLearning/src/media/audio.cpp",
+  "output": "CMakeFiles/Start.dir/media/audio.cpp.o"
+},
+{
+  "directory": "/Users/dong/develop/workspace/dong/OpenGlLearning/build",
+  "command": "/usr/bin/clang++  -I/Users/dong/develop/workspace/dong/OpenGlLearning/build -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../libs/glfw-3.3.8-source/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../include -I/opt/homebrew/Cellar/ffmpeg/7.1_3/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/toolkit/include -I/opt/homebrew/Cellar/sdl2/2.30.8/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/libs/glfw-3.3.8-source/include -isystem /opt/homebrew/Cellar/sdl2/2.30.8/include/SDL2 -iframework /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks -g -std=gnu++11 -arch arm64 -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk -mmacosx-version-min=14.1 -o CMakeFiles/Start.dir/media/engine.cpp.o -c /Users/dong/develop/workspace/dong/OpenGlLearning/src/media/engine.cpp",
+  "file": "/Users/dong/develop/workspace/dong/OpenGlLearning/src/media/engine.cpp",
+  "output": "CMakeFiles/Start.dir/media/engine.cpp.o"
+},
+{
+  "directory": "/Users/dong/develop/workspace/dong/OpenGlLearning/build",
+  "command": "/usr/bin/clang++  -I/Users/dong/develop/workspace/dong/OpenGlLearning/build -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../libs/glfw-3.3.8-source/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../include -I/opt/homebrew/Cellar/ffmpeg/7.1_3/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/toolkit/include -I/opt/homebrew/Cellar/sdl2/2.30.8/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/libs/glfw-3.3.8-source/include -isystem /opt/homebrew/Cellar/sdl2/2.30.8/include/SDL2 -iframework /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks -g -std=gnu++11 -arch arm64 -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk -mmacosx-version-min=14.1 -o CMakeFiles/Start.dir/media/log.cpp.o -c /Users/dong/develop/workspace/dong/OpenGlLearning/src/media/log.cpp",
+  "file": "/Users/dong/develop/workspace/dong/OpenGlLearning/src/media/log.cpp",
+  "output": "CMakeFiles/Start.dir/media/log.cpp.o"
+},
+{
+  "directory": "/Users/dong/develop/workspace/dong/OpenGlLearning/build",
+  "command": "/usr/bin/clang++  -I/Users/dong/develop/workspace/dong/OpenGlLearning/build -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../libs/glfw-3.3.8-source/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../include -I/opt/homebrew/Cellar/ffmpeg/7.1_3/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/toolkit/include -I/opt/homebrew/Cellar/sdl2/2.30.8/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/libs/glfw-3.3.8-source/include -isystem /opt/homebrew/Cellar/sdl2/2.30.8/include/SDL2 -iframework /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks -g -std=gnu++11 -arch arm64 -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk -mmacosx-version-min=14.1 -o CMakeFiles/Start.dir/media/media.cpp.o -c /Users/dong/develop/workspace/dong/OpenGlLearning/src/media/media.cpp",
+  "file": "/Users/dong/develop/workspace/dong/OpenGlLearning/src/media/media.cpp",
+  "output": "CMakeFiles/Start.dir/media/media.cpp.o"
+},
+{
+  "directory": "/Users/dong/develop/workspace/dong/OpenGlLearning/build",
   "command": "/usr/bin/clang++  -I/Users/dong/develop/workspace/dong/OpenGlLearning/build -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../libs/glfw-3.3.8-source/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/../include -I/opt/homebrew/Cellar/ffmpeg/7.1_3/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/src/toolkit/include -I/opt/homebrew/Cellar/sdl2/2.30.8/include -I/Users/dong/develop/workspace/dong/OpenGlLearning/libs/glfw-3.3.8-source/include -isystem /opt/homebrew/Cellar/sdl2/2.30.8/include/SDL2 -iframework /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks -g -std=gnu++11 -arch arm64 -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk -mmacosx-version-min=14.1 -o CMakeFiles/Start.dir/media/simplestFFmpeg.cpp.o -c /Users/dong/develop/workspace/dong/OpenGlLearning/src/media/simplestFFmpeg.cpp",
   "file": "/Users/dong/develop/workspace/dong/OpenGlLearning/src/media/simplestFFmpeg.cpp",
   "output": "CMakeFiles/Start.dir/media/simplestFFmpeg.cpp.o"
