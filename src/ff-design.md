@@ -77,21 +77,62 @@ static double compute_target_delay(double delay, VideoState *is)
     if (get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER) {
         /* if video is slave, we try to correct big delays by
            duplicating or deleting a frame */
+        /**
+         * 视频时钟 - 主时钟（音频时钟）
+         * > 0 则视频比音频快
+         * 反之则慢
+         */
         diff = get_clock(&is->vidclk) - get_master_clock(is);
 
         /* skip or repeat frame. We take into account the
            delay to compute the threshold. I still don't know
            if it is the best guess */
+        /**
+         * 在区间[6fps, 24fps]之间，如果帧数大于24fps,则取24fps，如果帧数小于6fps，则取6fps
+         * 也就是这里取[0.04s, 0.1s]之间的值作为同步阈值，这个值就是换算成帧数的话就是某一个帧，
+         * delay为当前帧与上一帧的时间差值，可以理解为动态帧率，
+         * 其实最简单的理解这个阈值就是1帧的时间，只是为了保证延时的稳定性，而取了阈值的区间
+         */
         sync_threshold = FFMAX(AV_SYNC_THRESHOLD_MIN, FFMIN(AV_SYNC_THRESHOLD_MAX, delay));
+        /**
+         * is->max_frame_duration通常 为 10s
+         * 也就是差值超过10s,就不做任何延时了，没必要了，摆烂
+         * 
+         */
         if (!isnan(diff) && fabs(diff) < is->max_frame_duration) {
+            /**
+             * 比-阈值还小，说明已经很慢，就直接延时为0，加速播放
+             * 为什么要要做FFMAX(0, dealy + diff)？ 因为delay是当前帧 - 上一帧，而diff是视频时钟 - 音频时钟。
+             * 两个的变量不一样，所以可能出现 fbs(diff) < dealy的情况，比如d视频帧率比较低，而此时这个diff差值并没有超过一帧的时长
+             * 此时dealy + diff就会 > 0, 这种情况还是需要进行延时，为了保真帧率的稳定，但我个人认为这个做法并不必要，直接dealy = 0就可以了
+             */
             if (diff <= -sync_threshold)
                 delay = FFMAX(0, delay + diff);
+            /**
+             * 如果差值大于阈值，并且大于AV_SYNC_FRAMEDUP_THRESHOLD，这个值为0.1s, 也就是6fps,
+             * 这说明视频的播放速度已经比音频快比较多，这个时候就将 delay = delay + diff 直接加起来作为延时时间
+             */
             else if (diff >= sync_threshold && delay > AV_SYNC_FRAMEDUP_THRESHOLD)
                 delay = delay + diff;
+            /**
+             * 另外的情况，就直接二倍延时
+             */
             else if (diff >= sync_threshold)
                 delay = 2 * delay;
         }
     }
+    /**
+     * 从上面的延时计算我们发现有几种情况是没处理到的，那就是diff在[-sync_threshold, sync_threshold]之间的情况，就是在阈值的范围内
+     * 这种情况下被认为是可以接受的播放不同步差异，此时人无法感受出音视频的不同步，所以就不做任何处理，直接返回delay即可，
+     * 也就是这种情况下无需做音视频同步，只需要保证视频帧同步即可
+     */
+
+    av_log(NULL, AV_LOG_TRACE, "video: delay=%0.3f A-V=%f\n",
+            delay, -diff);
+
+    return delay;
+}
+
 
 ```
 
@@ -203,4 +244,8 @@ static int get_video_frame(VideoState *is, AVFrame *frame)
 
 
 详情可以参考：https://ffmpeg.xianwaizhiyin.net/ffplay/video_sync.html
+
+# 我的播放器音视频同步
+大框架参照ffplay视频同步到音频的策略，也就是上面所分析的，解码时同步，播放时同步到音频，即将播放时对同步到视频fps,但需要做一些整改和简化，ffplay同步相对较复杂，暂时不需要那么复杂的逻辑：
+### State
 
