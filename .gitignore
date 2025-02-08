@@ -49,3 +49,4 @@ build/Start
 .vscode
 .fake
 local
+.idea/

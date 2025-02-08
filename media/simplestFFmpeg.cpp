@@ -410,6 +410,5 @@ void playVideo()
 {
     std::thread t(startPlay);
     auto window = initRenderer(800, 600);
-    std::cout << "播放结束，自动退出！" << std::endl;
     glfwTerminate();
 }
