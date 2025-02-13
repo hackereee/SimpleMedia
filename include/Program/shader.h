@@ -26,6 +26,11 @@ public:
 	void setFloat(std::string& name, float value);
 	void setMat4(std::string& name, glm::mat4& value);
 
+	void setIntP(const char* name, int value);
+	void setBoolP(const char* name, bool value);
+	void setFloatP(const char* name, float value);
+	void setMat4P(const char* name, glm::mat4& value);
+
 	void release();
 
 private:

@@ -97,6 +97,24 @@ void Shader::setMat4(string& name, glm::mat4& value) {
 	glUniformMatrix4fv(glGetUniformLocation(ProgramId, name.c_str()), 1, GL_FALSE, glm::value_ptr(value));
 }
 
+
+void Shader::setFloatP(const char* name, float value) {
+	glUniform1f(glGetUniformLocation(ProgramId, name), value);
+}
+
+void Shader::setIntP(const char* name, int value) {
+	glUniform1i(glGetUniformLocation(ProgramId, name), value);
+}
+
+
+void Shader::setBoolP(const char* name, bool value) {
+	glUniform1i(glGetUniformLocation(ProgramId, name), value);
+}
+
+void Shader::setMat4P(const char* name, glm::mat4& value) {
+	glUniformMatrix4fv(glGetUniformLocation(ProgramId, name), 1, GL_FALSE, glm::value_ptr(value));
+}
+
 void Shader::release() {
 	glDeleteProgram(ProgramId);
 }

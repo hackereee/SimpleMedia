@@ -29,7 +29,7 @@ int main(){
     // std::cin >> input;
     // functionMap[input]();
     // playVideo();
-    MediaPlayer player("local/whoIsAllah.mp4");
+    MediaPlayer player("local/whoIsAllah.mp4", 800, 600);
     player.Play();
     return 0;
 }
