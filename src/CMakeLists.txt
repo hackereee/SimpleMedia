@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(OpenGlLearning VERSION 1.0.0)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../bgfx/bgfx-config.cmake)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 configure_file(${PROJECT_SOURCE_DIR}/config/config.h.in config.h)
@@ -65,7 +68,8 @@ target_include_directories(Start PUBLIC
         ${FFMPEG_INCLUDE_DIRS}
         ${TOOLKIT_INCLUDE_DIR}
         ${SDL2_INCLUDE_DIRS}
-        ${MEDIA_HEADER_DIR})
+        ${MEDIA_HEADER_DIR}
+        ${BGFX_INCLUDE_DIR})
 
 
 # set_target_properties(Start
@@ -90,7 +94,7 @@ set(FFMPEG_LIBRARIES
         ${FFMPEG_LIBRARY_DIRS}/libavfilter.dylib
         ${FFMPEG_LIBRARY_DIRS}/libswresample.dylib)
 
-target_link_libraries(Start PUBLIC ${FFMPEG_LIBRARIES} ${SDL2_LIBRARIES})
 
-target_link_libraries(Start PUBLIC OpenGL::GL)
+target_link_libraries(Start PUBLIC ${FFMPEG_LIBRARIES} ${SDL2_LIBRARIES} OpenGL::GL ${BGFX_LIBRARIES})
+
 
