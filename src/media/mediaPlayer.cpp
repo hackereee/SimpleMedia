@@ -5,6 +5,8 @@
 #include <Program/shader.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <bgfx/bgfx.h>
+#include <config.h>
 extern "C"
 {
 #include <libavutil/imgutils.h>
@@ -277,6 +279,11 @@ bool MediaPlayer::InitAudio()
 
 bool MediaPlayer::InitGL()
 {
+    bgfx::Init init;  
+    #ifdef MACOS
+    std::clog << "MACOS" << std::endl;
+    init.type = bgfx::RendererType::Metal;
+    #endif  
     auto window = initGlEnv(videoWidth, videoHeight, "DDYPlayer");
     if (!window)
     {
