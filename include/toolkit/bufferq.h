@@ -19,16 +19,16 @@ public:
         // 如果缓冲区满了则释放锁并等待
         notFull.wait(lock, [this]()
                      { return queue.size() < size; });
-        queue.push(msg);
+        queue.emplace(msg);
         notEmpty.notify_one();
     };
-    T pop()
+    T &pop()
     {
         std::unique_lock<std::mutex> lock(mtx);
         // 如果缓冲区为空则释放锁并等待
         notEmpty.wait(lock, [this]()
                       { return queue.size() > 0; });
-        auto msg= queue.front();
+        auto &msg= queue.front();
         queue.pop();
         notFull.notify_one();
         return msg;

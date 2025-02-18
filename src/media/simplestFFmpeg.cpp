@@ -223,10 +223,10 @@ void sendEnd()
 
 void startPlay()
 {
-    std::cout << "请输入视频文件路径" << std::endl;
-    std::string path;
-    std::cin >> path;
-    const char *input = path.c_str();
+    // std::cout << "请输入视频文件路径" << std::endl;
+    // std::string path;
+    // std::cin >> path;
+    const char *input = "local/whoIsAllah.mp4";
     AVFormatContext *pFormatCtx = avformat_alloc_context();
     // 打开文件
     if (avformat_open_input(&pFormatCtx, input, NULL, NULL) != 0)
@@ -291,7 +291,8 @@ void startPlay()
     // 分配pFrameYUV的缓冲区
     int align = 1;
 
-    SwsContext *pSwsCtx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
+   
+    SwsContext *pSwsCtx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, SWS_BILINEAR, NULL, NULL, NULL);
     double firstTime = glfwGetTime();
 
     while (true)
@@ -338,7 +339,7 @@ void startPlay()
                     double diff = currentTime - firstTime;
                     auto timebase = pFormatCtx->streams[videoStreamIndex]->time_base;
                     double playTime = pFrame->pts * av_q2d(timebase);
-                    std::cout << "diff:" << diff << " playTime:" << playTime << std::endl;
+                    std::cout << "pts" << pFrame->pts << "stream index" << videoStreamIndex << "diff:" << diff << " playTime:" << playTime << std::endl;
                     if (diff - playTime > 0.01)
                     {
                         continue;
@@ -410,6 +411,5 @@ void playVideo()
 {
     std::thread t(startPlay);
     auto window = initRenderer(800, 600);
-    std::cout << "播放结束，自动退出！" << std::endl;
     glfwTerminate();
 }

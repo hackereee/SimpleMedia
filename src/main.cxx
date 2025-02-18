@@ -3,7 +3,8 @@
 #include <iostream>
 #include <map>
 // #include <transform/2d.h>
-#include "media/simplestFFmpeg.h"
+// #include "media/simplestFFmpeg.h"
+#include "media/include/player.h"
 
 
 std::map<int, void(*)()> functionMap;
@@ -27,7 +28,9 @@ int main(){
     // int input = 0;
     // std::cin >> input;
     // functionMap[input]();
-    playVideo();
+    // playVideo();
+    MediaPlayer player("local/whoIsAllah.mp4", 800, 600);
+    player.Play();
     return 0;
 }
 
