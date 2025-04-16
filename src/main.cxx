@@ -4,21 +4,21 @@
 #include <map>
 // #include <transform/2d.h>
 // #include "media/simplestFFmpeg.h"
-#include "media/include/player.h"
+#include  <player.h>
+// #include <bx/bx.h>
 
+std::map<int, void (*)()> functionMap;
 
-std::map<int, void(*)()> functionMap;
-
-void init(){
+void init()
+{
     // functionMap[1] = &beginPart1;
     // functionMap[2] = &renderTexture;
     // functionMap[3] = &renderTexture3D;
     // functionMap[4] = &trans2D;
 }
 
-
-
-int main(){
+int main()
+{
     // trans2D();
     // std::cout << "opengl 练习实现,请输入序号以开始：" << std::endl;
     // std::cout << "1.绘制三角形" << std::endl;
@@ -29,9 +29,7 @@ int main(){
     // std::cin >> input;
     // functionMap[input]();
     // playVideo();
-    MediaPlayer player("local/whoIsAllah.mp4", 800, 600);
+    MediaPlayer player("local/a.mp4", 800, 600);
     player.Play();
     return 0;
 }
-
-

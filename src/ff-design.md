@@ -109,13 +109,20 @@ static double compute_target_delay(double delay, VideoState *is)
             if (diff <= -sync_threshold)
                 delay = FFMAX(0, delay + diff);
             /**
-             * 如果差值大于阈值，并且大于AV_SYNC_FRAMEDUP_THRESHOLD，这个值为0.1s, 也就是6fps,
-             * 这说明视频的播放速度已经比音频快比较多，这个时候就将 delay = delay + diff 直接加起来作为延时时间
+             * 如果差值大于阈值，并且前后视频帧差值大于AV_SYNC_FRAMEDUP_THRESHOLD，这个值为0.1s, 也就是6fps,
+             * 此时视频播放至少比音频播放快了阈值的时长，而后面的delay > AV_SYNC_FRAMEDUP_THRESHOLD(0.1s) 则保证了这个阈值一定是0.1s，
+             * 那么也就是diff一定 > 0.1s, 此时要在delay基础上直接加上diff 秒，
+             * 注意，这里为什么不是直接delay = diff呢？因为delay本身是两帧之间的时间间隔，也就是如果如果仅仅延时delay那么只是保证了帧率和视频编码帧率一致
+             * 如果一致这个速度的话，那么完全没有起到任何等待音频的作用，所以这里 delay + diff才能让音频追上当前视频的播放速度
              */
             else if (diff >= sync_threshold && delay > AV_SYNC_FRAMEDUP_THRESHOLD)
                 delay = delay + diff;
             /**
-             * 另外的情况，就直接二倍延时
+             * 而这里因为delay是在阈值内的，也就是在 0.1s 内， 此时属于可以接受的范围，就无需再等待diff 秒了，直接等待 2倍 delay,
+             * 这里不用delay + diff的好处是因为，delay此时属于阈值以内，如果直接 + diff的话，如果diff比较大，那就会造成这个播放的帧率下降
+             * 这样有两个不好的点，第一是会感受到卡帧，第二是有等待太长从而导致视频的播放又落后了
+             * 当然这样的delay并非最好，但是ffplay作者自己说没出问题，所以我们权当其为一个比较优秀的解决方案就好了
+             * 
              */
             else if (diff >= sync_threshold)
                 delay = 2 * delay;
@@ -156,7 +163,7 @@ static double vp_duration(VideoState *is, Frame *vp, Frame *nextvp) {
 diff: 视频时钟 - 音频时钟
 sync_threshold(同步阈值): `FFMAX(AV_SYNC_THRESHOLD_MIN, FFMIN(AV_SYNC_THRESHOLD_MAX, delay)); `
 * AV_SYNC_THRESHOLD_MIN: 最小同步阈值，固定为0.04，也就是24fps
-* AV_SYNC_THRESHOLD_MAX： 最大同步阈值， 固定位0.1， 也就是 6fps
+* AV_SYNC_THRESHOLD_MAX： 最大同步阈值， 固定位0.1， 也就是 10fps
 * FFMIN(AV_SYNC_THRESHOLD_MAX, delay): 假设delay比最大阈值还大，那说明其延时已经非常高，这种情况以 `AV_SYNC_THRESHOLD_MAX`为基准，若delay比最小阈值还大，则取`AV_SYNC_THRESHOLD_MIN`
 * sync_threshold的意思是只能取，[0.04, 0.1]之间的数值作为同步阈值
 

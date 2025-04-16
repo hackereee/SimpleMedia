@@ -1,6 +1,5 @@
 #ifndef MEDIAPLAYER_H
 #define MEDIAPLAYER_H
-#define GLFW_INCLUDE_NONE
 
 #include <iostream>
 #include <memory>
@@ -10,8 +9,6 @@
 #include <condition_variable>
 #include <SDL2/SDL.h>
 #include <toolkit/bufferq.h>
-#include <GLFW/glfw3.h>
-#include <Program/shader.h>
 extern "C"
 {
 #include <libavformat/avformat.h>
@@ -30,13 +27,41 @@ public:
     ~Clock();
 };
 
+enum PlayStatus
+{
+    PLAYING,
+    PAUSED,
+    STOPPED
+};
+
 class PlayState
 {
 public:
     AVFrame *frame;
     Clock *clk;
+    PlayStatus status = PLAYING;
     PlayState(AVFrame *frame, Clock *clk);
     ~PlayState();
+};
+
+class AudioData
+{
+public:
+    uint8_t *data;
+    size_t size;
+    Clock *clk;
+    AudioData(uint8_t *data, size_t size, Clock *clk) : data(data), size(size), clk(clk) {};
+    ~AudioData()
+    {
+        if (data)
+        {
+            delete data;
+        }
+        if (clk)
+        {
+            delete clk;
+        }
+    }
 };
 
 // 自定义智能指针释放器
@@ -44,10 +69,11 @@ struct FFmpegDeleter
 {
     void operator()(AVFormatContext *ctx);
     void operator()(AVCodecContext *ctx);
-    void operator()(AVFrame *frame);
     void operator()(SwsContext *ctx);
     void operator()(SwrContext *ctx);
-    void operator()(GLFWwindow *window);
+    void operator()(SDL_Window *window);
+    void operator()(SDL_Renderer *renderer);
+    void operator()(SDL_Texture *texture);
 };
 
 class MediaPlayer
@@ -65,7 +91,6 @@ private:
     bool InitVideo();
     bool InitAudio();
     bool InitSDL();
-    bool InitGL();
     void DecodeLoop();
     void ProcessVideoPacket(AVPacket *pkt);
     void ProcessAudioPacket(AVPacket *pkt);
@@ -81,28 +106,32 @@ private:
     std::unique_ptr<AVCodecContext, FFmpegDeleter> video_codec_ctx_, audio_codec_ctx_;
     std::unique_ptr<SwsContext, FFmpegDeleter> sws_ctx_;
     std::unique_ptr<SwrContext, FFmpegDeleter> swr_ctx_;
-    std::unique_ptr<GLFWwindow, FFmpegDeleter> window_;
-
-    PlayState *playState_ = nullptr;
 
     // SDL 资源
     SDL_AudioDeviceID audio_dev_ = 0;
-    Shader *sharder_ = nullptr;
-    GLuint textures[3];
+    std::unique_ptr<SDL_Window, FFmpegDeleter> window_;
+    std::unique_ptr<SDL_Renderer, FFmpegDeleter> renderer_;
+    std::unique_ptr<SDL_Texture, FFmpegDeleter> texture_;
+
+    PlayState *playState_ = nullptr;
+    AudioData *current_audio_data_ = nullptr;
+    
 
     int videoWidth;
     int videoHeight;
-
-    GLuint vao, vbo, ebo;
+    double initial_time_ = 0;
 
     // 数据队列
     OkQueue<PlayState *> video_frames_;
-    OkQueue<std::pair<uint8_t *, size_t>> audio_data_;
+    OkQueue<AudioData *> audio_data_;
+    OkQueue<AVPacket *> video_packets_;
     size_t audio_pos_ = 0;
     std::mutex video_mutex_;
     int video_stream_idx_ = -1, audio_stream_idx_ = -1;
+
+    // SDL计时
+
+    void video_thread();
 };
-
-
 
 #endif // MEDIAPLAYER_H

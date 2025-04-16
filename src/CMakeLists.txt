@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(OpenGlLearning VERSION 1.0.0)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/bgfx/bgfx-config.cmake)
+# include(${CMAKE_CURRENT_SOURCE_DIR}/bgfx/bgfx-config.cmake)
 
-message("BGFX_INCLUDE_DIR: ${BGFX_INCLUDE_DIR}")
+# message("BGFX_INCLUDE_DIR: ${BGFX_INCLUDE_DIR}")
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -70,8 +70,8 @@ target_include_directories(Start PUBLIC
         ${FFMPEG_INCLUDE_DIRS}
         ${TOOLKIT_INCLUDE_DIR}
         ${SDL2_INCLUDE_DIRS}
-        ${MEDIA_HEADER_DIR}
-        ${BGFX_INCLUDE_DIR})
+        ${MEDIA_HEADER_DIR})
+        # ${BGFX_INCLUDE_DIR})
 
 
 # set_target_properties(Start
@@ -98,10 +98,10 @@ set(FFMPEG_LIBRARIES
 
 
        
-target_link_libraries(Start PUBLIC ${FFMPEG_LIBRARIES} ${SDL2_LIBRARIES} OpenGL::GL ${BGFX_LIBRARIES} )
+target_link_libraries(Start PUBLIC ${FFMPEG_LIBRARIES} ${SDL2_LIBRARIES} OpenGL::GL)
 
 if(APPLE)
 # 链接 Metal 框架
-target_link_libraries(Start PUBLIC "-framework Metal")
-target_link_libraries(Start PUBLIC "-framework QuartzCore")
+# target_link_libraries(Start PUBLIC "-framework Metal")
+# target_link_libraries(Start PUBLIC "-framework QuartzCore")
 endif()

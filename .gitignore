@@ -48,5 +48,33 @@ build/compile_commands.json
 build/Start
 .vscode
 .fake
-local
+local/
 .idea/
+.DS_Store
+.idea/
+.vscode/
+DerivedData/
+xcuserdata/
+project.xcworkspace/
+*.xcodeproj/project.xcworkspace/
+xcshareddata/
+*.xcuserstate
+# CocoaPods
+Pods/
+*.mp4
+
+# Carthage
+Carthage/
+
+# Build
+build/
+
+# Logs
+*.log
+*.tmp
+
+# SwiftPM
+.swiftpm/
+
+# Generated files
+*.swp

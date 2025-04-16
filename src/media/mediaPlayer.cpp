@@ -1,20 +1,26 @@
-#include "include/player.h"
+#include <player.h>
 #include "include/log.h"
+#include <SDL2/SDL.h>
 
-#include <common/gl_common.h>
-#include <Program/shader.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <bgfx/bgfx.h>
-#include <config.h>
 extern "C"
 {
 #include <libavutil/imgutils.h>
+#include <libavutil/time.h>
 }
 
 // 同步阈值，在这个范围内默认同步
 // 阈值为24fps的一帧时间
 const double SYNC_THRESHOLD = 0.04;
+
+// 最大同步阈值
+const double MAX_SYNC_THRESHOLD = 0.1;
+// 最小同步阈值
+const double MIN_SYNC_THRESHOLD = 0.04;
+
+
+double nowTickets(){
+    return SDL_GetTicks() / 1000.0;
+}
 
 PlayState::PlayState(AVFrame *frame, Clock *clk) : frame(frame), clk(clk) {}
 
@@ -29,18 +35,6 @@ PlayState::~PlayState()
 Clock::Clock(double pts, double time) : pts(pts), time(time) {}
 
 Clock::~Clock() {}
-
-/// @brief 顶点及纹理坐标
-const float vertices[] = {
-    // 顶点坐标          // 纹理坐标
-    -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-    1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-    1.0f, -1.0f, 0.0f, 1.0f, 0.0f};
-
-const int indices[] = {
-    0, 1, 2,
-    2, 3, 1};
 
 // 自定义智能指针释放器实现
 void FFmpegDeleter::operator()(AVFormatContext *ctx)
@@ -65,13 +59,26 @@ void FFmpegDeleter::operator()(SwrContext *ctx)
         swr_free(&ctx);
 }
 
-void FFmpegDeleter::operator()(GLFWwindow *window)
+void FFmpegDeleter::operator()(SDL_Window *window)
 {
     if (window)
-        glfwDestroyWindow(window);
+        SDL_DestroyWindow(window);
 }
 
-MediaPlayer::MediaPlayer(const std::string &filename, int videoWidth = 800, int videoHeight = 600) : filename_(filename), audio_data_(10), video_frames_(10), videoWidth(videoWidth), videoHeight(videoHeight)
+void FFmpegDeleter::operator()(SDL_Renderer *renderer)
+{
+    if (renderer)
+        SDL_DestroyRenderer(renderer);
+}
+
+void FFmpegDeleter::operator()(SDL_Texture *texture)
+{
+    if (texture)
+        SDL_DestroyTexture(texture);
+}
+
+MediaPlayer::MediaPlayer(const std::string &filename, int videoWidth, int videoHeight) : filename_(filename), audio_data_(10), video_frames_(10),
+video_packets_(32), videoWidth(videoWidth), videoHeight(videoHeight)
 {
     avformat_network_init();
     this->Init();
@@ -80,14 +87,14 @@ MediaPlayer::MediaPlayer(const std::string &filename, int videoWidth = 800, int 
 MediaPlayer::~MediaPlayer()
 {
     Stop();
-
     SDL_Quit();
 }
 
 bool MediaPlayer::Init()
 {
-    if (!OpenFile() || !InitGL() || !InitVideo() || !InitAudio() || !InitSDL())
+    if (!OpenFile() || !InitSDL() || !InitVideo() || !InitAudio())
         return false;
+    initial_time_ = nowTickets();
     return true;
 }
 
@@ -95,10 +102,7 @@ void MediaPlayer::Stop()
 {
     std::clog << "stop" << std::endl;
     quit_ = true;
-    if (sharder_)
-    {
-        delete sharder_;
-    }
+
     if (audio_dev_)
         SDL_CloseAudioDevice(audio_dev_);
 }
@@ -106,8 +110,12 @@ void MediaPlayer::Stop()
 void MediaPlayer::Play()
 {
     SDL_PauseAudioDevice(audio_dev_, 0);
+
     std::thread([this]()
                 { DecodeLoop(); })
+        .detach();
+    std::thread([this]()
+                { video_thread(); })
         .detach();
     VideoLoop();
 }
@@ -117,7 +125,6 @@ bool MediaPlayer::OpenFile()
     AVFormatContext *fmt_ctx = nullptr;
     if (int openRes = avformat_open_input(&fmt_ctx, filename_.c_str(), nullptr, nullptr) != 0)
     {
-
         char errbuf[AV_ERROR_MAX_STRING_SIZE];
         av_strerror(openRes, errbuf, sizeof(errbuf));
         std::cerr << "无法打开文件: " << filename_ << "错误代码" << errbuf << std::endl;
@@ -163,73 +170,25 @@ bool MediaPlayer::InitVideo()
         return false;
     }
     time_base_ = std::move(stream->time_base);
-    // 创建SwsContext
-    // SWS_BILINEAR双线性插值算法，平滑过滤
+
+    // 创建SwsContext用于格式转换
     sws_ctx_.reset(sws_getContext(video_codec_ctx_->width, video_codec_ctx_->height, video_codec_ctx_->pix_fmt,
                                   video_codec_ctx_->width, video_codec_ctx_->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, nullptr, nullptr, nullptr));
-    sharder_->use();
-    // 创建YUV420纹理
-    glGenTextures(3, textures);
-    // Y
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textures[0]);
-    sharder_->setIntP("textureY", 0);
-     // 设置环绕方式
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);     // x轴
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);     // y轴
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // 缩小
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // 放大
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, video_codec_ctx_->width, video_codec_ctx_->height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-    
-   
-    // U
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, textures[1]);
-    sharder_->setIntP("textureU", 1);
-    // 设置环绕方式
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);     // x轴
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);     // y轴
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // 缩小
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // 放大
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, video_codec_ctx_->width / 2, video_codec_ctx_->height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-    
-    
 
-    // V
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, textures[2]);
-    sharder_->setIntP("textureV", 2);
-    // 设置环绕方式
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);     // x轴
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);     // y轴
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // 缩小
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // 放大
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, video_codec_ctx_->width / 2, video_codec_ctx_->height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-   
-    
+    // 创建SDL纹理
+    texture_.reset(SDL_CreateTexture(
+        renderer_.get(),
+        SDL_PIXELFORMAT_IYUV,
+        SDL_TEXTUREACCESS_STREAMING,
+        video_codec_ctx_->width,
+        video_codec_ctx_->height));
 
-    // y轴翻转
-    glm::mat4 revert = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, -1.0f, 1.0f));
-    if (videoWidth > videoHeight)
+    if (!texture_)
     {
-        // 如果宽度大于高度， 则说明是横屏，我们铺满宽度，高度等比缩放
-        // 首先先还原被拉伸之前的比例
-        double scale = (double)video_codec_ctx_->height / videoHeight;
-        double wScale = videoWidth / (double)video_codec_ctx_->width;
-        scale = scale * wScale;
-        // 然后根据原有长宽比再次进行作坊
-        revert = glm::scale(revert, glm::vec3(1.0f, scale, 1.0f));
+        std::cerr << "无法创建SDL纹理: " << SDL_GetError() << std::endl;
+        return false;
     }
-    else
-    {
-        double scale = (double)video_codec_ctx_->width / videoWidth;
-        double hScale = videoHeight / (double)video_codec_ctx_->height;
-        scale = scale * hScale;
-        revert = glm::scale(revert, glm::vec3(scale, 1.0f, 1.0f));
-    }
-    std::string revertName = "revert";
-    sharder_->setMat4(revertName, revert);
-    sharder_->setBoolP("useTexture", true);
+
     return true;
 }
 
@@ -274,98 +233,98 @@ bool MediaPlayer::InitAudio()
         return false;
     }
 
-    return true;
-}
-
-bool MediaPlayer::InitGL()
-{
-    bgfx::Init init;  
-    #ifdef MACOS
-    std::clog << "MACOS" << std::endl;
-    init.type = bgfx::RendererType::Metal;
-    #endif  
-    auto window = initGlEnv(videoWidth, videoHeight, "DDYPlayer");
-    if (!window)
+    SDL_AudioSpec wanted, obtained;
+    wanted.freq = audio_codec_ctx_->sample_rate;
+    wanted.format = AUDIO_S16SYS;
+    wanted.channels = audio_codec_ctx_->ch_layout.nb_channels;
+    wanted.samples = 1024;
+    wanted.callback = [](void *userdata, Uint8 *stream, int len)
     {
+        static_cast<MediaPlayer *>(userdata)->AudioCallback(stream, len);
+    };
+    wanted.userdata = this;
+
+    audio_dev_ = SDL_OpenAudioDevice(nullptr, 0, &wanted, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    if (audio_dev_ == 0)
+    {
+        std::cerr << "无法打开音频设备: " << SDL_GetError() << std::endl;
         return false;
     }
-    window_.reset(window);
-    sharder_ = new Shader("shaders/media/media.vert", "shaders/media/media.frag");
-    sharder_->use();
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glfwSwapInterval(1);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     return true;
 }
 
 bool MediaPlayer::InitSDL()
 {
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0)
+    // 初始化SDL，支持视频、音频和事件
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0)
     {
         std::cerr << "SDL初始化失败: " << SDL_GetError() << std::endl;
         return false;
     }
 
-    if (audio_stream_idx_ >= 0)
-    {
-        SDL_AudioSpec wanted, obtained;
-        wanted.freq = audio_codec_ctx_->sample_rate;
-        wanted.format = AUDIO_S16SYS;
-        wanted.channels = audio_codec_ctx_->ch_layout.nb_channels;
-        wanted.samples = 1024;
-        wanted.callback = [](void *userdata, Uint8 *stream, int len)
-        {
-            static_cast<MediaPlayer *>(userdata)->AudioCallback(stream, len);
-        };
-        wanted.userdata = this;
+    // 创建窗口
+    SDL_Window *window = SDL_CreateWindow(
+        "DDYPlayer",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        videoWidth,
+        videoHeight,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-        audio_dev_ = SDL_OpenAudioDevice(nullptr, 0, &wanted, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-        if (audio_dev_ == 0)
-        {
-            std::cerr << "无法打开音频设备: " << SDL_GetError() << std::endl;
-            return false;
-        }
+    if (!window)
+    {
+        std::cerr << "无法创建窗口: " << SDL_GetError() << std::endl;
+        return false;
     }
+    window_.reset(window);
+
+    // 创建渲染器
+    SDL_Renderer *renderer = SDL_CreateRenderer(
+        window_.get(),
+        -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    if (!renderer)
+    {
+        std::cerr << "无法创建渲染器: " << SDL_GetError() << std::endl;
+        return false;
+    }
+    renderer_.reset(renderer);
 
     return true;
 }
 
 void MediaPlayer::DecodeLoop()
 {
-    AVPacket pkt;
+    AVPacket *pkt;
     int readRes = -1;
-    while (!quit_ && (readRes = av_read_frame(fmt_ctx_.get(), &pkt)) >= 0)
+    while (!quit_ && (readRes = av_read_frame(fmt_ctx_.get(), pkt)) >= 0)
     {
-
-        if (pkt.stream_index == audio_stream_idx_)
+        if (pkt->stream_index == audio_stream_idx_)
         {
-            ProcessAudioPacket(&pkt);
-        }else  if (pkt.stream_index == video_stream_idx_)
-        {
-            ProcessVideoPacket(&pkt);
+            ProcessAudioPacket(pkt);
         }
-        av_packet_unref(&pkt);
+        else if (pkt->stream_index == video_stream_idx_)
+        {
+            AVPacket *copy = av_packet_alloc();
+            av_packet_ref(copy, pkt);
+            video_packets_.push(copy);
+        }
+        av_packet_unref(pkt);
     }
 
-    // quit_ = true;
-    if (readRes < 0)
+    if (readRes == AVERROR_EOF)
+    {
+        std::clog << "readRes == AVERROR_EOF" << std::endl;
+        pkt = av_packet_alloc();
+        pkt->data = nullptr;
+        pkt->size = 0;
+        pkt->stream_index = video_stream_idx_;
+        // 发送一个空包，通知解码器结束
+        video_packets_.push(pkt);
+    }
+    else
     {
         char errbuf[AV_ERROR_MAX_STRING_SIZE];
         av_strerror(readRes, errbuf, sizeof(errbuf));
@@ -373,15 +332,35 @@ void MediaPlayer::DecodeLoop()
     }
 }
 
+void MediaPlayer::video_thread()
+{
+    AVPacket *pkt;
+    while (!quit_ && (pkt = video_packets_.pop()))
+    {
+        ProcessVideoPacket(pkt);
+        av_packet_unref(pkt);
+    }
+}
+
 void MediaPlayer::ProcessVideoPacket(AVPacket *pkt)
 {
+
+    if(pkt->size == 0){
+        //空包，说明结束
+        std::clog << "空包，说明结束" << std::endl;
+        PlayState *playState = new PlayState(nullptr, new Clock(0, 0));
+        playState->status = PlayStatus::STOPPED;
+        video_frames_.push(playState);
+        return;
+    }
+
     if (avcodec_send_packet(video_codec_ctx_.get(), pkt) != 0)
         return;
     AVFrame *frame = av_frame_alloc();
     while (avcodec_receive_frame(video_codec_ctx_.get(), frame) == 0)
     {
-        std::clog << "receive frame, pts" << frame->pts << std::endl;
-        double now = glfwGetTime();
+        std::clog << "receive frame, pts " << frame->pts << std::endl;
+        double now = nowTickets();
         if (playState_)
         {
             double pts = frame->pts * av_q2d(time_base_);
@@ -391,19 +370,33 @@ void MediaPlayer::ProcessVideoPacket(AVPacket *pkt)
             // 如果错过帧播放时机，直接丢弃
             if (diff < 0)
             {
-                continue;
+                av_frame_free(&frame);
+                return;
             }
         }
 
         AVFrame *pFrameYUV = av_frame_alloc();
         pFrameYUV->format = AV_PIX_FMT_YUV420P;
-        uint8_t *out_buffer = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_YUV420P, video_codec_ctx_.get()->width, video_codec_ctx_.get()->height, 1));
-        av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, out_buffer, AV_PIX_FMT_YUV420P, video_codec_ctx_.get()->width, video_codec_ctx_.get()->height, 1);
-        // 释放out_buffer
-        av_free(out_buffer);
+        pFrameYUV->width = video_codec_ctx_->width;
+        pFrameYUV->height = video_codec_ctx_->height;
 
-        sws_scale(sws_ctx_.get(), (const uint8_t *const *)frame->data, frame->linesize, 0, video_codec_ctx_.get()->height, pFrameYUV->data, pFrameYUV->linesize);
-        PlayState *playState = new PlayState(pFrameYUV, new Clock(frame->pts * av_q2d(time_base_), now));
+        if (av_frame_get_buffer(pFrameYUV, 32) < 0)
+        {
+            std::cerr << "无法分配YUV帧缓冲区" << std::endl;
+            av_frame_free(&pFrameYUV);
+            av_frame_free(&frame);
+            return;
+        }
+
+        sws_scale(sws_ctx_.get(),
+                  (const uint8_t *const *)frame->data,
+                  frame->linesize,
+                  0,
+                  video_codec_ctx_->height,
+                  pFrameYUV->data,
+                  pFrameYUV->linesize);
+        auto pts = frame->pts * av_q2d(time_base_);
+        PlayState *playState = new PlayState(pFrameYUV, new Clock(pts, initial_time_ + pts));
         playState_ = playState;
         video_frames_.push(playState);
     }
@@ -423,76 +416,131 @@ void MediaPlayer::ProcessAudioPacket(AVPacket *pkt)
                          out_samples, AV_SAMPLE_FMT_S16, 0);
         out_samples = swr_convert(swr_ctx_.get(), &output, out_samples,
                                   (const uint8_t **)frame->data, frame->nb_samples);
-
-        std::pair<uint8_t *, size_t> data(output, out_samples * audio_codec_ctx_->ch_layout.nb_channels * 2);
-        audio_data_.push(std::move(data));
+        auto pts = frame->pts * av_q2d(time_base_);
+        AudioData *data = new AudioData(output, out_samples * audio_codec_ctx_->ch_layout.nb_channels * 2, new Clock(pts, initial_time_ + pts));
+        audio_data_.push(data);
     }
     av_frame_free(&frame);
 }
 
 void MediaPlayer::VideoLoop()
 {
-    while (!quit_ && glfwWindowShouldClose(window_.get()) == 0)
+    SDL_Event event;
+    bool running = true;
+
+    while (!quit_ && running)
     {
+        // 处理SDL事件
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                running = false;
+                break;
+            }
+        }
+
+        if (!running)
+            break;
+
         auto playState = video_frames_.pop();
-        // 渲染
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        sharder_->use();
-        // 更新纹理
-        // Y
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textures[0]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video_codec_ctx_->width, video_codec_ctx_->height, GL_RED, GL_UNSIGNED_BYTE, playState->frame->data[0]);
-        int error = glGetError();
-        if (error != GL_NO_ERROR)
+        if (playState->status == PlayStatus::STOPPED)
         {
-            std::cout << "update texture Y error" << error << std::endl;
+            break;
         }
-        // U
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textures[1]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video_codec_ctx_->width / 2, video_codec_ctx_->height / 2, GL_RED, GL_UNSIGNED_BYTE, playState->frame->data[1]);
-         error = glGetError();
-        if (error != GL_NO_ERROR)
+
+        double delay = playState->clk->time - nowTickets();
+        if(delay < 0 ){
+            delay = 0;
+        }
+
+        if(current_audio_data_){
+            //计算当前视频帧与音频帧的差值
+            //视频时钟 - 音频时钟
+            // 若结果 > 0, 视频快，等待音频
+            // 若 < 0, 则要直接播放追赶音频
+            // 这里还需注意视频本身也是有帧率的，所以需要考虑视频帧率
+            double diff = playState->clk->time - current_audio_data_->clk->time;
+            std::clog << "diff: " << diff << std::endl;
+            //阈值范围在[MIN_SYNC_THRESHOLD, MAX_SYNC_THRESHOLD]之间
+            int threshold = FFMAX(MIN_SYNC_THRESHOLD, FFMIN(MAX_SYNC_THRESHOLD, diff));
+            if(diff < -threshold){
+                delay = FFMAX(0, delay + diff);
+            }else if(diff > threshold){
+                delay = 2 * delay;
+            }
+        }
+        std::clog << "delay time: " << delay << std::endl;
+        SDL_Delay(delay * 1000);
+        
+        // 使用SDL更新纹理并渲染
+        SDL_UpdateYUVTexture(
+            texture_.get(),
+            NULL,
+            playState->frame->data[0], playState->frame->linesize[0],
+            playState->frame->data[1], playState->frame->linesize[1],
+            playState->frame->data[2], playState->frame->linesize[2]);
+
+        // 清空屏幕
+        SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
+        SDL_RenderClear(renderer_.get());
+
+        // 计算视频显示区域，保持宽高比
+        SDL_Rect rect;
+        int window_width, window_height;
+        SDL_GetWindowSize(window_.get(), &window_width, &window_height);
+
+        float aspect_ratio = static_cast<float>(video_codec_ctx_->width) / video_codec_ctx_->height;
+        float window_aspect_ratio = static_cast<float>(window_width) / window_height;
+
+        if (aspect_ratio > window_aspect_ratio)
         {
-            std::cout << "update texture U error" << error << std::endl;
+            // 视频更宽，填充宽度
+            rect.w = window_width;
+            rect.h = static_cast<int>(window_width / aspect_ratio);
+            rect.x = 0;
+            rect.y = (window_height - rect.h) / 2;
         }
-        // V
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, textures[2]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video_codec_ctx_->width / 2, video_codec_ctx_->height / 2, GL_RED, GL_UNSIGNED_BYTE, playState->frame->data[2]);
-        error = glGetError();
-        if (error != GL_NO_ERROR)
+        else
         {
-            std::cout << "update texture V error" << error << std::endl;
+            // 视频更高，填充高度
+            rect.h = window_height;
+            rect.w = static_cast<int>(window_height * aspect_ratio);
+            rect.x = (window_width - rect.w) / 2;
+            rect.y = 0;
         }
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // glBindVertexArray(0);
-        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-        glfwSwapBuffers(window_.get());
-        glfwPollEvents();
+
+        // 渲染视频帧
+        SDL_RenderCopy(renderer_.get(), texture_.get(), NULL, &rect);
+        SDL_RenderPresent(renderer_.get());
     }
+
+    quit_ = true;
 }
 
 void MediaPlayer::AudioCallback(Uint8 *stream, int len)
 {
-    // if (audio_data_.empty())
-    // {
-    //     memset(stream, 0, len);
-    //     return;
-    // }
 
-    auto &data = audio_data_.pop();
-    int copy_size = std::min(len, static_cast<int>(data.second - audio_pos_));
-    memcpy(stream, data.first + audio_pos_, copy_size);
+    auto data = audio_data_.pop();
+    
+    auto lastData = current_audio_data_;
+    current_audio_data_ = data;
+    if(lastData){
+        delete lastData;
+    }
+    int copy_size = std::min(len, static_cast<int>(data->size - audio_pos_));
+    memcpy(stream, data->data + audio_pos_, copy_size);
+
+    // 如果有剩余空间，用0填充
+    if (copy_size < len)
+    {
+        memset(stream + copy_size, 0, len - copy_size);
+    }
+
     audio_pos_ += copy_size;
 
-    if (audio_pos_ >= data.second)
+    if (audio_pos_ >= data->size)
     {
-        av_freep(&data.first);
         audio_pos_ = 0;
     }
 }

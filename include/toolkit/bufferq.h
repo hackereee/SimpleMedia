@@ -22,7 +22,7 @@ public:
         queue.emplace(msg);
         notEmpty.notify_one();
     };
-    T &pop()
+    T pop()
     {
         std::unique_lock<std::mutex> lock(mtx);
         // 如果缓冲区为空则释放锁并等待

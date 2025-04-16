@@ -1,11 +1,11 @@
 #include <bgfx/bgfx.h>
-#include <bgfx/shader.h>
+#include <shader.h>
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <sstream>
 using namespace std;
-Shader::Shader(const char* vertexSource, const char* fragmentSource) {
+BgfxShader::BgfxShader(const char* vertexSource, const char* fragmentSource) {
     string vertexCode;
     string fragmentCode;
     ifstream vShaderFile;
@@ -40,7 +40,7 @@ Shader::Shader(const char* vertexSource, const char* fragmentSource) {
 
 };
 
-void Shader::compileAndLink(const char* vertexCode, const char* fragmentCode){
+void BgfxShader::compileAndLink(const char* vertexCode, const char* fragmentCode){
     if(!vertexCode || !fragmentCode){
         cout << "vertexCode or fragmentCode is null" << endl;
         return;
@@ -53,7 +53,7 @@ void Shader::compileAndLink(const char* vertexCode, const char* fragmentCode){
     
 }
 
-Shader::~Shader(){
+BgfxShader::~BgfxShader(){
     bgfx::destroy(programHandle_);
     //遍历删除uniform
     for(auto it = uniformLocationCache.begin(); it != uniformLocationCache.end(); it++){
@@ -62,30 +62,30 @@ Shader::~Shader(){
     std::clog << "Shader destroyed" << std::endl;
 }
 
-void Shader::submit(bgfx::ViewId viewId){
+void BgfxShader::submit(bgfx::ViewId viewId){
    bgfx::submit(viewId, programHandle_);
 }
 
-void Shader::setInt(const char* name, int value){
+void BgfxShader::setInt(const char* name, int value){
     bgfx::setUniform(getUniformLocation(name, bgfx::UniformType::Count), &value);
 }
 
 
-void Shader::setFloat(const char* name, float value){
+void BgfxShader::setFloat(const char* name, float value){
     bgfx::setUniform(getUniformLocation(name, bgfx::UniformType::Count), &value);
 }
 
 
-void Shader::setMat3(const char* name, float* mat3){
+void BgfxShader::setMat3(const char* name, float* mat3){
     bgfx::setUniform(getUniformLocation(name, bgfx::UniformType::Mat3), mat3);
 }
 
-void Shader::setMat4(const char* name, float* mat4){
+void BgfxShader::setMat4(const char* name, float* mat4){
     bgfx::setUniform(getUniformLocation(name, bgfx::UniformType::Mat4), mat4);
 }
 
 
-bgfx::UniformHandle Shader::getUniformLocation(const char* name, bgfx::UniformType::Enum type){
+bgfx::UniformHandle BgfxShader::getUniformLocation(const char* name, bgfx::UniformType::Enum type){
     bgfx::UniformHandle handle;
     if(uniformLocationCache.count(name)){
         handle =   uniformLocationCache[name];
@@ -95,4 +95,6 @@ bgfx::UniformHandle Shader::getUniformLocation(const char* name, bgfx::UniformTy
    }
    return handle;
 }
+
+
 
